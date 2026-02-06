@@ -245,6 +245,18 @@ combined with `since=` (defaults to `since=all`).
 curl -s "ntfy.sh/mytopic/json?poll=1"
 ```
 
+### Limit number of polled messages
+When using `poll=1`, you can additionally use the `limit=` query parameter to restrict how many messages are
+returned in a single poll. If `limit` is not set, all available messages since `since=` are returned (as before).
+
+For example, to only fetch the most recent message:
+
+```
+curl -s "ntfy.sh/mytopic/json?poll=1&limit=1"
+```
+
+The `limit` parameter also works with the `/sse`, `/raw` and `/ws` subscription endpoints.
+
 ### Fetch cached messages
 Messages may be cached for a couple of hours (see [message caching](../config.md#message-cache)) to account for network
 interruptions of subscribers. If the server has configured message caching, you can read back what you missed by using 
