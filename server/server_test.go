@@ -393,7 +393,7 @@ func TestServer_PublishAt(t *testing.T) {
 	require.Equal(t, "a message", messages[0].Message)
 	require.Equal(t, netip.Addr{}, messages[0].Sender) // Never return the sender!
 
-	messages, err = s.messageCache.Messages("mytopic", sinceAllMessages, true)
+	messages, err = s.messageCache.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "a message", messages[0].Message)
@@ -429,7 +429,7 @@ func TestServer_PublishAt_FromUser(t *testing.T) {
 	require.Equal(t, fakeTime, messages[0].Time)
 	require.Equal(t, "a message", messages[0].Message)
 
-	messages, err = s.messageCache.Messages("mytopic", sinceAllMessages, true)
+	messages, err = s.messageCache.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "a message", messages[0].Message)

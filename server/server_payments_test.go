@@ -535,12 +535,12 @@ func TestPayments_Webhook_Subscription_Updated_Downgrade_From_PastDue_To_Active(
 	time.Sleep(time.Second)
 	s.execManager()
 
-	ms, err := s.messageCache.Messages("atopic", sinceAllMessages, false)
+	ms, err := s.messageCache.Messages("atopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(ms))
 	require.FileExists(t, filepath.Join(s.config.AttachmentCacheDir, a2.ID))
 
-	ms, err = s.messageCache.Messages("ztopic", sinceAllMessages, false)
+	ms, err = s.messageCache.Messages("ztopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 0, len(ms))
 	require.NoFileExists(t, filepath.Join(s.config.AttachmentCacheDir, z2.ID))

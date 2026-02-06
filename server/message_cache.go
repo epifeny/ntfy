@@ -446,32 +446,44 @@ func (c *messageCache) addMessages(ms []*message) error {
 	return nil
 }
 
-func (c *messageCache) Messages(topic string, since sinceMarker, scheduled bool) ([]*message, error) {
+func (c *messageCache) Messages(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
 	if since.IsNone() {
 		return make([]*message, 0), nil
 	} else if since.IsLatest() {
 		return c.messagesLatest(topic)
 	} else if since.IsID() {
-		return c.messagesSinceID(topic, since, scheduled)
+		return c.messagesSinceID(topic, since, scheduled, limit)
 	}
-	return c.messagesSinceTime(topic, since, scheduled)
+	return c.messagesSinceTime(topic, since, scheduled, limit)
 }
 
-func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, scheduled bool) ([]*message, error) {
-	var rows *sql.Rows
-	var err error
+func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	var (
+		query string
+		args  []any
+	)
 	if scheduled {
-		rows, err = c.db.Query(selectMessagesSinceTimeIncludeScheduledQuery, topic, since.Time().Unix())
+		query = selectMessagesSinceTimeIncludeScheduledQuery
 	} else {
-		rows, err = c.db.Query(selectMessagesSinceTimeQuery, topic, since.Time().Unix())
+		query = selectMessagesSinceTimeQuery
 	}
+	args = []any{topic, since.Time().Unix()}
+	if limit > 0 {
+		query = query + " LIMIT ?"
+		args = append(args, limit)
+	}
+	rows, err = c.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	return readMessages(rows)
 }
 
-func (c *messageCache) messagesSinceID(topic string, since sinceMarker, scheduled bool) ([]*message, error) {
+func (c *messageCache) messagesSinceID(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
 	idrows, err := c.db.Query(selectRowIDFromMessageID, since.ID())
 	if err != nil {
 		return nil, err
@@ -485,12 +497,24 @@ func (c *messageCache) messagesSinceID(topic string, since sinceMarker, schedule
 		return nil, err
 	}
 	idrows.Close()
-	var rows *sql.Rows
+	var (
+		rows *sql.Rows
+	)
+	var (
+		query string
+		args  []any
+	)
 	if scheduled {
-		rows, err = c.db.Query(selectMessagesSinceIDIncludeScheduledQuery, topic, rowID)
+		query = selectMessagesSinceIDIncludeScheduledQuery
 	} else {
-		rows, err = c.db.Query(selectMessagesSinceIDQuery, topic, rowID)
+		query = selectMessagesSinceIDQuery
 	}
+	args = []any{topic, rowID}
+	if limit > 0 {
+		query = query + " LIMIT ?"
+		args = append(args, limit)
+	}
+	rows, err = c.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
