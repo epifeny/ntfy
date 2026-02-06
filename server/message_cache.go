@@ -446,18 +446,66 @@ func (c *messageCache) addMessages(ms []*message) error {
 	return nil
 }
 
-func (c *messageCache) Messages(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
+// buildFilterClause returns a SQL fragment and args for queryFilter (id, message, title, priority, tags).
+// Matches Pass() semantics: priority 0 in DB is treated as default (3). Limit is applied in SQL after all filters.
+func buildFilterClause(f *queryFilter) (clause string, args []any) {
+	if f == nil {
+		return "", nil
+	}
+	if f.ID != "" {
+		clause += " AND mid = ?"
+		args = append(args, f.ID)
+	}
+	if f.Message != "" {
+		clause += " AND message = ?"
+		args = append(args, f.Message)
+	}
+	if f.Title != "" {
+		clause += " AND title = ?"
+		args = append(args, f.Title)
+	}
+	if len(f.Priority) > 0 {
+		placeholders := make([]string, len(f.Priority))
+		for i := range f.Priority {
+			placeholders[i] = "?"
+		}
+		clause += " AND (CASE WHEN priority = 0 THEN 3 ELSE priority END) IN (" + strings.Join(placeholders, ",") + ")"
+		for _, p := range f.Priority {
+			args = append(args, p)
+		}
+	}
+	for _, t := range f.Tags {
+		clause += " AND (',' || tags || ',') LIKE '%,' || ? || ',%'"
+		args = append(args, t)
+	}
+	return clause, args
+}
+
+// injectFilter inserts the filter WHERE conditions before ORDER BY so that LIMIT applies after all filters.
+func injectFilter(query string, f *queryFilter) (string, []any) {
+	clause, args := buildFilterClause(f)
+	if clause == "" {
+		return query, nil
+	}
+	idx := strings.Index(query, "ORDER BY")
+	if idx == -1 {
+		return query, nil
+	}
+	return query[:idx] + clause + " " + query[idx:], args
+}
+
+func (c *messageCache) Messages(topic string, since sinceMarker, scheduled bool, limit int, filter *queryFilter) ([]*message, error) {
 	if since.IsNone() {
 		return make([]*message, 0), nil
 	} else if since.IsLatest() {
-		return c.messagesLatest(topic)
+		return c.messagesLatest(topic, filter)
 	} else if since.IsID() {
-		return c.messagesSinceID(topic, since, scheduled, limit)
+		return c.messagesSinceID(topic, since, scheduled, limit, filter)
 	}
-	return c.messagesSinceTime(topic, since, scheduled, limit)
+	return c.messagesSinceTime(topic, since, scheduled, limit, filter)
 }
 
-func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
+func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, scheduled bool, limit int, filter *queryFilter) ([]*message, error) {
 	var (
 		rows *sql.Rows
 		err  error
@@ -472,6 +520,10 @@ func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, schedu
 		query = selectMessagesSinceTimeQuery
 	}
 	args = []any{topic, since.Time().Unix()}
+	if filterClause, filterArgs := injectFilter(query, filter); filterArgs != nil {
+		query = filterClause
+		args = append(args, filterArgs...)
+	}
 	if limit > 0 {
 		query = query + " LIMIT ?"
 		args = append(args, limit)
@@ -483,14 +535,14 @@ func (c *messageCache) messagesSinceTime(topic string, since sinceMarker, schedu
 	return readMessages(rows)
 }
 
-func (c *messageCache) messagesSinceID(topic string, since sinceMarker, scheduled bool, limit int) ([]*message, error) {
+func (c *messageCache) messagesSinceID(topic string, since sinceMarker, scheduled bool, limit int, filter *queryFilter) ([]*message, error) {
 	idrows, err := c.db.Query(selectRowIDFromMessageID, since.ID())
 	if err != nil {
 		return nil, err
 	}
 	defer idrows.Close()
 	if !idrows.Next() {
-		return c.messagesSinceTime(topic, sinceAllMessages, scheduled, limit)
+		return c.messagesSinceTime(topic, sinceAllMessages, scheduled, limit, filter)
 	}
 	var rowID int64
 	if err := idrows.Scan(&rowID); err != nil {
@@ -510,6 +562,10 @@ func (c *messageCache) messagesSinceID(topic string, since sinceMarker, schedule
 		query = selectMessagesSinceIDQuery
 	}
 	args = []any{topic, rowID}
+	if filterClause, filterArgs := injectFilter(query, filter); filterArgs != nil {
+		query = filterClause
+		args = append(args, filterArgs...)
+	}
 	if limit > 0 {
 		query = query + " LIMIT ?"
 		args = append(args, limit)
@@ -521,8 +577,14 @@ func (c *messageCache) messagesSinceID(topic string, since sinceMarker, schedule
 	return readMessages(rows)
 }
 
-func (c *messageCache) messagesLatest(topic string) ([]*message, error) {
-	rows, err := c.db.Query(selectMessagesLatestQuery, topic)
+func (c *messageCache) messagesLatest(topic string, filter *queryFilter) ([]*message, error) {
+	query := selectMessagesLatestQuery
+	args := []any{topic}
+	if filterClause, filterArgs := injectFilter(query, filter); filterArgs != nil {
+		query = filterClause
+		args = append(args, filterArgs...)
+	}
+	rows, err := c.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
