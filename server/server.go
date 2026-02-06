@@ -1492,7 +1492,7 @@ func (s *Server) handleSubscribeHTTP(w http.ResponseWriter, r *http.Request, v *
 		for _, t := range topics {
 			t.Keepalive()
 		}
-		return s.sendOldMessages(topics, since, scheduled, limit, v, sub)
+		return s.sendOldMessages(topics, since, scheduled, limit, filters, v, sub)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1508,7 +1508,7 @@ func (s *Server) handleSubscribeHTTP(w http.ResponseWriter, r *http.Request, v *
 	if err := sub(v, newOpenMessage(topicsStr)); err != nil { // Send out open message
 		return err
 	}
-	if err := s.sendOldMessages(topics, since, scheduled, limit, v, sub); err != nil {
+	if err := s.sendOldMessages(topics, since, scheduled, limit, filters, v, sub); err != nil {
 		return err
 	}
 	for {
@@ -1643,7 +1643,7 @@ func (s *Server) handleSubscribeWS(w http.ResponseWriter, r *http.Request, v *vi
 		for _, t := range topics {
 			t.Keepalive()
 		}
-		return s.sendOldMessages(topics, since, scheduled, limit, v, sub)
+		return s.sendOldMessages(topics, since, scheduled, limit, filters, v, sub)
 	}
 	subscriberIDs := make([]int, 0)
 	for _, t := range topics {
@@ -1657,7 +1657,7 @@ func (s *Server) handleSubscribeWS(w http.ResponseWriter, r *http.Request, v *vi
 	if err := sub(v, newOpenMessage(topicsStr)); err != nil { // Send out open message
 		return err
 	}
-	if err := s.sendOldMessages(topics, since, scheduled, limit, v, sub); err != nil {
+	if err := s.sendOldMessages(topics, since, scheduled, limit, filters, v, sub); err != nil {
 		return err
 	}
 	err = g.Wait()
@@ -1756,15 +1756,15 @@ func (s *Server) setRateVisitors(r *http.Request, v *visitor, rateTopics []*topi
 }
 
 // sendOldMessages selects old messages from the messageCache and calls sub for each of them. It uses since as the
-// marker, returning only messages that are newer than the marker. If limit > 0, at most limit messages are returned
-// (the most recent ones).
-func (s *Server) sendOldMessages(topics []*topic, since sinceMarker, scheduled bool, limit int, v *visitor, sub subscriber) error {
+// marker, returning only messages that are newer than the marker. All filters (id, message, title, priority, tags) are
+// applied in SQL before LIMIT, so limit applies to the filtered result set.
+func (s *Server) sendOldMessages(topics []*topic, since sinceMarker, scheduled bool, limit int, filters *queryFilter, v *visitor, sub subscriber) error {
 	if since.IsNone() {
 		return nil
 	}
 	messages := make([]*message, 0)
 	for _, t := range topics {
-		topicMessages, err := s.messageCache.Messages(t.ID, since, scheduled, limit)
+		topicMessages, err := s.messageCache.Messages(t.ID, since, scheduled, limit, filters)
 		if err != nil {
 			return err
 		}
