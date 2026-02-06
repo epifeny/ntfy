@@ -42,7 +42,7 @@ func testCacheMessages(t *testing.T, c *messageCache) {
 	require.Equal(t, 2, counts["mytopic"])
 
 	// mytopic: since all
-	messages, _ := c.Messages("mytopic", sinceAllMessages, false)
+	messages, _ := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Equal(t, 2, len(messages))
 	require.Equal(t, "my message", messages[0].Message)
 	require.Equal(t, "mytopic", messages[0].Topic)
@@ -53,23 +53,23 @@ func testCacheMessages(t *testing.T, c *messageCache) {
 	require.Equal(t, "my other message", messages[1].Message)
 
 	// mytopic: since none
-	messages, _ = c.Messages("mytopic", sinceNoMessages, false)
+	messages, _ = c.Messages("mytopic", sinceNoMessages, false, 0)
 	require.Empty(t, messages)
 
 	// mytopic: since m1 (by ID)
-	messages, _ = c.Messages("mytopic", newSinceID(m1.ID), false)
+	messages, _ = c.Messages("mytopic", newSinceID(m1.ID), false, 0)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, m2.ID, messages[0].ID)
 	require.Equal(t, "my other message", messages[0].Message)
 	require.Equal(t, "mytopic", messages[0].Topic)
 
 	// mytopic: since 2
-	messages, _ = c.Messages("mytopic", newSinceTime(2), false)
+	messages, _ = c.Messages("mytopic", newSinceTime(2), false, 0)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "my other message", messages[0].Message)
 
 	// mytopic: latest
-	messages, _ = c.Messages("mytopic", sinceLatestMessage, false)
+	messages, _ = c.Messages("mytopic", sinceLatestMessage, false, 0)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "my other message", messages[0].Message)
 
@@ -79,7 +79,7 @@ func testCacheMessages(t *testing.T, c *messageCache) {
 	require.Equal(t, 1, counts["example"])
 
 	// example: since all
-	messages, _ = c.Messages("example", sinceAllMessages, false)
+	messages, _ = c.Messages("example", sinceAllMessages, false, 0)
 	require.Equal(t, "my example message", messages[0].Message)
 
 	// non-existing: count
@@ -88,7 +88,7 @@ func testCacheMessages(t *testing.T, c *messageCache) {
 	require.Equal(t, 0, counts["doesnotexist"])
 
 	// non-existing: since all
-	messages, _ = c.Messages("doesnotexist", sinceAllMessages, false)
+	messages, _ = c.Messages("doesnotexist", sinceAllMessages, false, 0)
 	require.Empty(t, messages)
 }
 
@@ -132,11 +132,11 @@ func testCacheMessagesScheduled(t *testing.T, c *messageCache) {
 	require.Nil(t, c.AddMessage(m2))
 	require.Nil(t, c.AddMessage(m3))
 
-	messages, _ := c.Messages("mytopic", sinceAllMessages, false) // exclude scheduled
+	messages, _ := c.Messages("mytopic", sinceAllMessages, false, 0) // exclude scheduled
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "message 1", messages[0].Message)
 
-	messages, _ = c.Messages("mytopic", sinceAllMessages, true) // include scheduled
+	messages, _ = c.Messages("mytopic", sinceAllMessages, true, 0) // include scheduled
 	require.Equal(t, 3, len(messages))
 	require.Equal(t, "message 1", messages[0].Message)
 	require.Equal(t, "message 3", messages[1].Message) // Order!
@@ -184,7 +184,7 @@ func testCacheMessagesTagsPrioAndTitle(t *testing.T, c *messageCache) {
 	m.Title = "some title"
 	require.Nil(t, c.AddMessage(m))
 
-	messages, _ := c.Messages("mytopic", sinceAllMessages, false)
+	messages, _ := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Equal(t, []string{"tag1", "tag2"}, messages[0].Tags)
 	require.Equal(t, 5, messages[0].Priority)
 	require.Equal(t, "some title", messages[0].Title)
@@ -223,14 +223,14 @@ func testCacheMessagesSinceID(t *testing.T, c *messageCache) {
 	require.Nil(t, c.AddMessage(m7))
 
 	// Case 1: Since ID exists, exclude scheduled
-	messages, _ := c.Messages("mytopic", newSinceID(m2.ID), false)
+	messages, _ := c.Messages("mytopic", newSinceID(m2.ID), false, 0)
 	require.Equal(t, 3, len(messages))
 	require.Equal(t, "message 4", messages[0].Message)
 	require.Equal(t, "message 6", messages[1].Message) // Not scheduled m3/m5!
 	require.Equal(t, "message 7", messages[2].Message)
 
 	// Case 2: Since ID exists, include scheduled
-	messages, _ = c.Messages("mytopic", newSinceID(m2.ID), true)
+	messages, _ = c.Messages("mytopic", newSinceID(m2.ID), true, 0)
 	require.Equal(t, 5, len(messages))
 	require.Equal(t, "message 4", messages[0].Message)
 	require.Equal(t, "message 6", messages[1].Message)
@@ -239,7 +239,7 @@ func testCacheMessagesSinceID(t *testing.T, c *messageCache) {
 	require.Equal(t, "message 3", messages[4].Message) // Order!
 
 	// Case 3: Since ID does not exist (-> Return all messages), include scheduled
-	messages, _ = c.Messages("mytopic", newSinceID("doesntexist"), true)
+	messages, _ = c.Messages("mytopic", newSinceID("doesntexist"), true, 0)
 	require.Equal(t, 7, len(messages))
 	require.Equal(t, "message 1", messages[0].Message)
 	require.Equal(t, "message 2", messages[1].Message)
@@ -250,11 +250,11 @@ func testCacheMessagesSinceID(t *testing.T, c *messageCache) {
 	require.Equal(t, "message 3", messages[6].Message) // Order!
 
 	// Case 4: Since ID exists and is last message (-> Return no messages), exclude scheduled
-	messages, _ = c.Messages("mytopic", newSinceID(m7.ID), false)
+	messages, _ = c.Messages("mytopic", newSinceID(m7.ID), false, 0)
 	require.Equal(t, 0, len(messages))
 
 	// Case 5: Since ID exists and is last message (-> Return no messages), include scheduled
-	messages, _ = c.Messages("mytopic", newSinceID(m7.ID), true)
+	messages, _ = c.Messages("mytopic", newSinceID(m7.ID), true, 0)
 	require.Equal(t, 2, len(messages))
 	require.Equal(t, "message 5", messages[0].Message)
 	require.Equal(t, "message 3", messages[1].Message)
@@ -301,7 +301,7 @@ func testCachePrune(t *testing.T, c *messageCache) {
 	require.Equal(t, 1, counts["mytopic"])
 	require.Equal(t, 0, counts["another_topic"])
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "my other message", messages[0].Message)
@@ -359,7 +359,7 @@ func testCacheAttachments(t *testing.T, c *messageCache) {
 	}
 	require.Nil(t, c.AddMessage(m))
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(messages))
 
@@ -482,7 +482,7 @@ func TestSqliteCache_Migration_From0(t *testing.T) {
 	c := newSqliteTestCacheFromFile(t, filename, "")
 	checkSchemaVersion(t, c.db)
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 10, len(messages))
 	require.Equal(t, "some message 5", messages[5].Message)
@@ -534,12 +534,12 @@ func TestSqliteCache_Migration_From1(t *testing.T) {
 	require.Nil(t, c.AddMessage(delayedMessage))
 
 	// 10, not 11!
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 10, len(messages))
 
 	// 11!
-	messages, err = c.Messages("mytopic", sinceAllMessages, true)
+	messages, err = c.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 11, len(messages))
 
@@ -640,7 +640,7 @@ func TestSqliteCache_Migration_From9(t *testing.T) {
 	require.Nil(t, rows.Scan(&version))
 	require.Equal(t, currentSchemaVersion, version)
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 10, len(messages))
 	for _, m := range messages {
@@ -696,7 +696,7 @@ func testSender(t *testing.T, c *messageCache) {
 	m2 := newDefaultMessage("mytopic", "mymessage without sender")
 	require.Nil(t, c.AddMessage(m2))
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(messages))
 	require.Equal(t, messages[0].Sender, netip.MustParseAddr("1.2.3.4"))
@@ -734,11 +734,11 @@ func testDeleteScheduledBySequenceID(t *testing.T, c *messageCache) {
 	require.Nil(t, c.AddMessage(otherTopicMsg))
 
 	// Verify all messages exist (including scheduled)
-	messages, err := c.Messages("mytopic", sinceAllMessages, true)
+	messages, err := c.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(messages))
 
-	messages, err = c.Messages("othertopic", sinceAllMessages, true)
+	messages, err = c.Messages("othertopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 
@@ -749,13 +749,13 @@ func testDeleteScheduledBySequenceID(t *testing.T, c *messageCache) {
 	require.Equal(t, "scheduled1", deletedIDs[0])
 
 	// Verify scheduled message is deleted
-	messages, err = c.Messages("mytopic", sinceAllMessages, true)
+	messages, err = c.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "published message", messages[0].Message)
 
 	// Verify other topic's message still exists (topic-scoped deletion)
-	messages, err = c.Messages("othertopic", sinceAllMessages, true)
+	messages, err = c.Messages("othertopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "other scheduled", messages[0].Message)
@@ -770,7 +770,7 @@ func testDeleteScheduledBySequenceID(t *testing.T, c *messageCache) {
 	require.Nil(t, err)
 	require.Empty(t, deletedIDs)
 
-	messages, err = c.Messages("mytopic", sinceAllMessages, true)
+	messages, err = c.Messages("mytopic", sinceAllMessages, true, 0)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(messages))
 	require.Equal(t, "published message", messages[0].Message)
@@ -791,7 +791,7 @@ func TestMemCache_NopCache(t *testing.T) {
 	c, _ := newNopCache()
 	require.Nil(t, c.AddMessage(newDefaultMessage("mytopic", "my message")))
 
-	messages, err := c.Messages("mytopic", sinceAllMessages, false)
+	messages, err := c.Messages("mytopic", sinceAllMessages, false, 0)
 	require.Nil(t, err)
 	require.Empty(t, messages)
 

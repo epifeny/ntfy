@@ -1764,7 +1764,7 @@ func (s *Server) sendOldMessages(topics []*topic, since sinceMarker, scheduled b
 	}
 	messages := make([]*message, 0)
 	for _, t := range topics {
-		topicMessages, err := s.messageCache.Messages(t.ID, since, scheduled)
+		topicMessages, err := s.messageCache.Messages(t.ID, since, scheduled, limit)
 		if err != nil {
 			return err
 		}
@@ -1773,9 +1773,6 @@ func (s *Server) sendOldMessages(topics []*topic, since sinceMarker, scheduled b
 	sort.Slice(messages, func(i, j int) bool {
 		return messages[i].Time < messages[j].Time
 	})
-	if limit > 0 && len(messages) > limit {
-		messages = messages[len(messages)-limit:]
-	}
 	for _, m := range messages {
 		if err := sub(v, m); err != nil {
 			return err
