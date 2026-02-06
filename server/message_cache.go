@@ -490,7 +490,7 @@ func (c *messageCache) messagesSinceID(topic string, since sinceMarker, schedule
 	}
 	defer idrows.Close()
 	if !idrows.Next() {
-		return c.messagesSinceTime(topic, sinceAllMessages, scheduled)
+		return c.messagesSinceTime(topic, sinceAllMessages, scheduled, limit)
 	}
 	var rowID int64
 	if err := idrows.Scan(&rowID); err != nil {
