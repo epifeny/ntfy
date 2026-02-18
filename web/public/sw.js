@@ -4,6 +4,7 @@ import { NavigationRoute, registerRoute } from "workbox-routing";
 import { NetworkFirst } from "workbox-strategies";
 import { clientsClaim } from "workbox-core";
 import { dbAsync } from "../src/app/db";
+import { ACTION_HTTP, ACTION_VIEW } from "../src/app/actions";
 import { badge, icon, messageWithSequenceId, notificationTag, toNotificationParams } from "../src/app/notificationUtils";
 import initI18n from "../src/app/i18n";
 import {
@@ -250,12 +251,12 @@ const handleClick = async (event) => {
         }
       };
 
-      if (action.action === "view") {
+      if (action.action === ACTION_VIEW) {
         self.clients.openWindow(action.url);
         if (action.clear) {
           await clearNotification();
         }
-      } else if (action.action === "http") {
+      } else if (action.action === ACTION_HTTP) {
         try {
           const response = await fetch(action.url, {
             method: action.method ?? "POST",

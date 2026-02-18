@@ -90,6 +90,7 @@ var (
 	matrixPushPath                                       = "/_matrix/push/v1/notify"
 	metricsPath                                          = "/metrics"
 	apiHealthPath                                        = "/v1/health"
+	apiVersionPath                                       = "/v1/version"
 	apiConfigPath                                        = "/v1/config"
 	apiStatsPath                                         = "/v1/stats"
 	apiWebPushPath                                       = "/v1/webpush"
@@ -467,6 +468,8 @@ func (s *Server) handleInternal(w http.ResponseWriter, r *http.Request, v *visit
 		return s.ensureWebEnabled(s.handleEmpty)(w, r, v)
 	} else if r.Method == http.MethodGet && r.URL.Path == apiHealthPath {
 		return s.handleHealth(w, r, v)
+	} else if r.Method == http.MethodGet && r.URL.Path == apiVersionPath {
+		return s.ensureAdmin(s.handleVersion)(w, r, v)
 	} else if r.Method == http.MethodGet && r.URL.Path == apiConfigPath {
 		return s.handleConfig(w, r, v)
 	} else if r.Method == http.MethodGet && r.URL.Path == webConfigPath {
@@ -1458,12 +1461,16 @@ func (s *Server) handleSubscribeHTTP(w http.ResponseWriter, r *http.Request, v *
 		return err
 	}
 	var wlock sync.Mutex
+	var closed bool
 	defer func() {
-		// Hack: This is the fix for a horrible data race that I have not been able to figure out in quite some time.
-		// It appears to be happening when the Go HTTP code reads from the socket when closing the request (i.e. AFTER
-		// this function returns), and causes a data race with the ResponseWriter. Locking wlock here silences the
-		// data race detector. See https://github.com/binwiederhier/ntfy/issues/338#issuecomment-1163425889.
-		wlock.TryLock()
+		// This blocks until any in-flight sub() call finishes writing/flushing the response writer,
+		// then marks the connection as closed so future sub() calls are no-ops. This prevents a panic
+		// from writing to a response writer that has been cleaned up after the handler returns.
+		// See https://github.com/binwiederhier/ntfy/issues/338#issuecomment-1163425889
+		// and https://github.com/binwiederhier/ntfy/pull/1598.
+		wlock.Lock()
+		closed = true
+		wlock.Unlock()
 	}()
 	sub := func(v *visitor, msg *message) error {
 		if !filters.Pass(msg) {
@@ -1475,6 +1482,9 @@ func (s *Server) handleSubscribeHTTP(w http.ResponseWriter, r *http.Request, v *
 		}
 		wlock.Lock()
 		defer wlock.Unlock()
+		if closed {
+			return nil
+		}
 		if _, err := w.Write([]byte(m)); err != nil {
 			return err
 		}
