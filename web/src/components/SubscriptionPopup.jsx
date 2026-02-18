@@ -118,14 +118,12 @@ export const SubscriptionPopup = (props) => {
     const nowSeconds = Math.round(Date.now() / 1000);
     const message = shuffle([
       `Hello friend, this is a test notification from ntfy web. It's ${formatShortDateTime(
-        nowSeconds,
-        "en-US"
+        nowSeconds
       )} right now. Is that early or late?`,
       `So I heard you like ntfy? If that's true, go to GitHub and star it, or to the Play store and rate it. Thanks! Oh yeah, this is a test notification.`,
       `It's almost like you want to hear what I have to say. I'm not even a machine. I'm just a sentence that Phil typed on a random Thursday.`,
       `Alright then, it's ${formatShortDateTime(
-        nowSeconds,
-        "en-US"
+        nowSeconds
       )} already. Boy oh boy, where did the time go? I hope you're alright, friend.`,
       `There are nine million bicycles in Beijing That's a fact; It's a thing we can't deny. I wonder if that's true ...`,
       `I'm really excited that you're trying out ntfy. Did you know that there are a few public topics, such as ntfy.sh/stats and ntfy.sh/announcements.`,

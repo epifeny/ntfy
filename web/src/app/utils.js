@@ -140,14 +140,24 @@ export const hashCode = (s) => {
  */
 export const getKebabCaseLangStr = (language) => language.replace(/_/g, "-");
 
-export const formatShortDateTime = (timestamp, language) =>
-  new Intl.DateTimeFormat(getKebabCaseLangStr(language), {
+/**
+ * Format timestamp as short date+time using the browser's default locale.
+ * Uses undefined for Intl.DateTimeFormat so the user's system/browser locale
+ * is respected (e.g. DD/MM/YYYY, 24-hour for Israeli locale), rather than
+ * the translation language which may fall back to en-US when translations
+ * are missing.
+ */
+export const formatShortDateTime = (timestamp) =>
+  new Intl.DateTimeFormat(undefined, {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(timestamp * 1000));
 
-export const formatShortDate = (timestamp, language) =>
-  new Intl.DateTimeFormat(getKebabCaseLangStr(language), { dateStyle: "short" }).format(new Date(timestamp * 1000));
+/**
+ * Format timestamp as short date using the browser's default locale.
+ */
+export const formatShortDate = (timestamp) =>
+  new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(new Date(timestamp * 1000));
 
 export const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return "0 bytes";

@@ -291,7 +291,7 @@ const AccountType = () => {
         {account.billing?.paid_until && !account.billing?.cancel_at && (
           <Tooltip
             title={t("account_basics_tier_paid_until", {
-              date: formatShortDate(account.billing?.paid_until, i18n.language),
+              date: formatShortDate(account.billing?.paid_until),
             })}
           >
             <span>
@@ -336,7 +336,7 @@ const AccountType = () => {
       {account.billing?.cancel_at > 0 && (
         <Alert severity="warning" sx={{ mt: 1 }}>
           {t("account_basics_tier_canceled_subscription", {
-            date: formatShortDate(account.billing.cancel_at, i18n.language),
+            date: formatShortDate(account.billing.cancel_at),
           })}
         </Alert>
       )}
@@ -880,11 +880,11 @@ const TokensTable = (props) => {
               {token.token !== session.token() && (token.label || "-")}
             </TableCell>
             <TableCell sx={{ whiteSpace: "nowrap" }} aria-label={t("account_tokens_table_expires_header")}>
-              {token.expires ? formatShortDateTime(token.expires, i18n.language) : <em>{t("account_tokens_table_never_expires")}</em>}
+              {token.expires ? formatShortDateTime(token.expires) : <em>{t("account_tokens_table_never_expires")}</em>}
             </TableCell>
             <TableCell sx={{ whiteSpace: "nowrap" }} aria-label={t("account_tokens_table_last_access_header")}>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <span>{formatShortDateTime(token.last_access, i18n.language)}</span>
+                <span>{formatShortDateTime(token.last_access)}</span>
                 <Tooltip
                   title={t("account_tokens_table_last_origin_tooltip", {
                     ip: token.last_origin,

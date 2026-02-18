@@ -235,10 +235,10 @@ const NotificationBody = ({ notification }) => {
 };
 
 const NotificationItem = (props) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { notification } = props;
   const { attachment } = notification;
-  const date = formatShortDateTime(notification.time, i18n.language);
+  const date = formatShortDateTime(notification.time);
   const otherTags = unmatchedTags(notification.tags);
   const tags = otherTags.length > 0 ? otherTags.join(", ") : null;
   const handleDelete = async () => {
@@ -354,7 +354,7 @@ const NotificationItem = (props) => {
 };
 
 const Attachment = (props) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { attachment } = props;
   const expired = attachment.expires && attachment.expires < Date.now() / 1000;
   const expires = attachment.expires && attachment.expires > Date.now() / 1000;
@@ -373,7 +373,7 @@ const Attachment = (props) => {
   if (expires) {
     infos.push(
       t("notifications_attachment_link_expires", {
-        date: formatShortDateTime(attachment.expires, i18n.language),
+        date: formatShortDateTime(attachment.expires),
       })
     );
   }
