@@ -6,11 +6,145 @@ and the [ntfy Android app](https://github.com/binwiederhier/ntfy-android/release
 
 | Component        | Version | Release date |
 |------------------|---------|--------------|
-| ntfy server      | v2.17.0 | Feb 8, 2026  |
-| ntfy Android app | v1.22.2 | Jan 25, 2026 |
+| ntfy server      | v2.20.1 | Mar 27, 2026 |
+| ntfy Android app | v1.24.0 | Mar 5, 2026  |
 | ntfy iOS app     | v1.3    | Nov 26, 2023 |
 
 Please check out the release notes for [upcoming releases](#not-released-yet) below.
+
+### ntfy server v2.20.1
+Released March 27, 2026
+
+This is a small bugfix release that only affects high volume S3 backends that struggle with HTTP/2.
+
+**Bug fixes + maintenance:**
+
+* [Attachments](config.md#attachments): Add `disable_http2=true` S3 URL option to work around HTTP/2 stream errors with DigitalOcean Spaces and other S3-compatible providers ([#1678](https://github.com/binwiederhier/ntfy/issues/1678)/[#1679](https://github.com/binwiederhier/ntfy/pull/1679))
+
+### ntfy server v2.20.0
+Released March 26, 2026
+
+This release is another step towards making it possible to help scale ntfy up and out 🔥! With this release, you can store
+attachments in an S3-compatible object store as an alterative to the directory. See [attachment store](config.md#attachments)
+for details.
+
+!!! warning
+    With this release, ntfy will take full control over the attachment directory or S3 bucket. Files/objects in the configured `attachment-cache-dir`
+    that match the message ID format (12 chars, matching `^[A-Za-z0-9]{12}$`), and have no entries in the message database will be deleted.
+    **Do not use a directory or S3 bucket as `attachment-cache-dir` that is also used for something else.**
+
+    This is a small behavioral change that was necessary because the old logic often left attachments behind and would not clean them
+    up. Unless you have re-used the attachment directory for anything else (which is hopefully never done), this should not affect
+    you at all.
+
+**Features:**
+
+* Add S3-compatible object storage as an alternative [attachment store](config.md#attachments) via `attachment-cache-dir` config option ([#1656](https://github.com/binwiederhier/ntfy/pull/1656)/[#1672](https://github.com/binwiederhier/ntfy/pull/1672))
+
+**Bug fixes + maintenance:**
+
+* Reject invalid e-mail addresses (e.g. multiple comma-separated recipients) with HTTP 400
+* Add OpenRC init service file ([#1650](https://github.com/binwiederhier/ntfy/pull/1650), thanks to [@ageru](https://github.com/ageru) for the contribution)
+
+## ntfy server v2.19.2
+Released March 16, 2026
+
+This is another small bugfix release for PostgreSQL, avoiding races between primary and read replica, as well as to
+further reduce primary load.
+
+**Bug fixes + maintenance:**
+
+* Fix race condition in web push subscription causing FK constraint violation when concurrent requests hit the same endpoint
+* Route authorization query to read-only database replica to reduce primary database load
+
+## ntfy server v2.19.1
+Released March 15, 2026
+
+This is a bugfix release to avoid PostgreSQL insert failures due to invalid UTF-8 messages. It also fixes `database-url`
+validation incorrectly rejecting `postgresql://` connection strings.
+
+**Bug fixes + maintenance:**
+
+* Fix invalid UTF-8 in HTTP headers (e.g. Latin-1 encoded text) causing PostgreSQL insert failures and dropping entire message batches
+* Fix `database-url` validation rejecting `postgresql://` connection strings ([#1657](https://github.com/binwiederhier/ntfy/issues/1657)/[#1658](https://github.com/binwiederhier/ntfy/pull/1658))
+
+## ntfy server v2.19.0
+Released March 15, 2026
+
+This is a fast-follow release that enables Postgres read replica support.
+
+To offload read-heavy queries from the primary database, you can optionally configure one or more read replicas
+using the `database-replica-urls` option. When configured, non-critical read-only queries (e.g. fetching messages, 
+checking access permissions, etc) are distributed across the replicas using round-robin, while all writes and
+correctness-critical reads continue to go to the primary. If a replica becomes unhealthy, ntfy automatically falls back
+to the primary until the replica recovers.
+
+**Features:**
+
+* Support [PostgreSQL read replicas](config.md#postgresql-experimental) for offloading non-critical read queries via `database-replica-urls` config option ([#1648](https://github.com/binwiederhier/ntfy/pull/1648))
+* Add interactive [config generator](config.md#config-generator) to the documentation to help create server configuration files ([#1654](https://github.com/binwiederhier/ntfy/pull/1654))
+
+**Bug fixes + maintenance:**
+
+* Web: Throttle notification sound in web app to play at most once every 2 seconds (similar to [#1550](https://github.com/binwiederhier/ntfy/issues/1550), thanks to [@jlaffaye](https://github.com/jlaffaye) for reporting)
+* Web: Add hover tooltips to icon buttons in web app account and preferences pages ([#1565](https://github.com/binwiederhier/ntfy/issues/1565), thanks to [@jermanuts](https://github.com/jermanuts) for reporting)
+
+## ntfy server v2.18.0
+Released March 7, 2026
+
+This is the biggest release I've ever done on the server. It's 14,997 added lines of code, and 10,202 lines removed, all from
+one [pull request](https://github.com/binwiederhier/ntfy/pull/1619) that adds [PostgreSQL support](config.md#postgresql-experimental).
+
+The code was written by Cursor and Claude, but reviewed and heavily tested over 2-3 weeks by me. I created comparison documents,
+went through all queries multiple times and reviewed the logic over and over again. I also did load tests and manual regression tests,
+which took lots of evenings.
+
+I'll not instantly switch ntfy.sh over. Instead, I'm kindly asking the community to test the Postgres support and report back to me
+if things are working (or not working). There is a [one-off migration tool](https://github.com/binwiederhier/ntfy/tree/main/tools/pgimport) (entirely written by AI) that you can use to migrate.
+
+**Features:**
+
+* Add experimental [PostgreSQL support](config.md#postgresql-experimental) as an alternative database backend (message cache, user manager, web push subscriptions) via `database-url` config option ([#1114](https://github.com/binwiederhier/ntfy/issues/1114)/[#1619](https://github.com/binwiederhier/ntfy/pull/1619), thanks to [@brettinternet](https://github.com/brettinternet) for reporting)
+
+**Bug fixes + maintenance:**
+
+* Preserve `<br>` line breaks in HTML-only emails received via SMTP ([#690](https://github.com/binwiederhier/ntfy/issues/690), [#1620](https://github.com/binwiederhier/ntfy/pull/1620), thanks to [@uzkikh](https://github.com/uzkikh) for the fix and to [@teastrainer](https://github.com/teastrainer) for reporting)
+
+## ntfy Android v1.24.0
+Released March 5, 2026
+
+This is a tiny release that will revert the "reconnecting ..." behavior of the foreground notification. Lots of people
+have complained about it, so I'm replacing it with a notification that shows up when the server connection has failed
+for >15 minutes, hoping that people will be less annoyed by that.
+
+**Features:**
+
+* Show notification when connection to server has been lost for 15+ minutes, with dismiss, snooze and never-show-again actions
+
+**Bug fixes + maintenance:**
+
+* Fix crash in settings when fragment is detached during backup/restore or log operations
+
+## ntfy Android v1.23.0
+Released February 22, 2026
+
+This release adds support for search within a topic, and adds [copy action](publish.md#copy-to-clipboard) support
+to the Android app.
+
+**Features:**
+
+* Search within a topic ([#141](https://github.com/binwiederhier/ntfy/issues/141), [ntfy-android#153](https://github.com/binwiederhier/ntfy-android/pull/153), thanks to [@Copephobia](https://github.com/Copephobia) and [@StoyanYonkov](https://github.com/StoyanYonkov) for reporting and sponsoring)
+* Add "reconnecting to N topics ..." to foreground notification ([#1101](https://github.com/binwiederhier/ntfy/issues/1101), thanks to [@milosivanovic](https://github.com/milosivanovic) for reporting)
+* Improved default server dialog with full-screen UI and stricter URL validation ([#1582](https://github.com/binwiederhier/ntfy/issues/1582))
+* Show last notification time for UnifiedPush subscriptions ([#1230](https://github.com/binwiederhier/ntfy/issues/1230), [#1454](https://github.com/binwiederhier/ntfy/issues/1454), thanks to [@Tealk](https://github.com/Tealk) and [@user4andre](https://github.com/user4andre) for reporting)
+* Support "copy" action button to copy a value to the clipboard ([#1364](https://github.com/binwiederhier/ntfy/issues/1364), thanks to [@SudoWatson](https://github.com/SudoWatson) for reporting)
+
+**Bug fixes + maintenance:**
+
+* Fix `clear=true` on action buttons not marking notification as read ([#1029](https://github.com/binwiederhier/ntfy/issues/1029), thanks to [@ElFishi](https://github.com/ElFishi) for reporting)
+* Fix crash when default server URL is missing scheme by auto-prepending `https://` ([#1582](https://github.com/binwiederhier/ntfy/issues/1582), thanks to [@hard-zero1](https://github.com/hard-zero1))
+* Fix notification timestamp to use original send time instead of receive time ([#1112](https://github.com/binwiederhier/ntfy/issues/1112), thanks to [@voruti](https://github.com/voruti) for reporting)
+* Fix notifications being missed after service restart by using persisted lastNotificationId ([#1591](https://github.com/binwiederhier/ntfy/issues/1591), thanks to @Epifeny for reporting)
 
 ## ntfy server v2.17.0
 Released February 8, 2026
@@ -1698,19 +1832,4 @@ and the [ntfy Android app](https://github.com/binwiederhier/ntfy-android/release
 
 ## Not released yet
 
-### ntfy Android v1.23.x (UNRELEASED)
-
-**Features:**
-
-* Search within a topic ([#141](https://github.com/binwiederhier/ntfy/issues/141), [ntfy-android#153](https://github.com/binwiederhier/ntfy-android/pull/153), thanks to [@Copephobia](https://github.com/Copephobia) and [@StoyanYonkov](https://github.com/StoyanYonkov) for reporting and sponsoring)
-* Add "reconnecting to N topics ..." to foreground notification ([#1101](https://github.com/binwiederhier/ntfy/issues/1101), thanks to [@milosivanovic](https://github.com/milosivanovic) for reporting)
-* Improved default server dialog with full-screen UI and stricter URL validation ([#1582](https://github.com/binwiederhier/ntfy/issues/1582))
-* Show last notification time for UnifiedPush subscriptions ([#1230](https://github.com/binwiederhier/ntfy/issues/1230), [#1454](https://github.com/binwiederhier/ntfy/issues/1454), thanks to [@Tealk](https://github.com/Tealk) and [@user4andre](https://github.com/user4andre) for reporting)
-* Support "copy" action button to copy a value to the clipboard ([#1364](https://github.com/binwiederhier/ntfy/issues/1364), thanks to [@SudoWatson](https://github.com/SudoWatson) for reporting)
-
-**Bug fixes + maintenance:**
-
-* Fix `clear=true` on action buttons not marking notification as read ([#1029](https://github.com/binwiederhier/ntfy/issues/1029), thanks to [@ElFishi](https://github.com/ElFishi) for reporting)
-* Fix crash when default server URL is missing scheme by auto-prepending `https://` ([#1582](https://github.com/binwiederhier/ntfy/issues/1582), thanks to [@hard-zero1](https://github.com/hard-zero1))
-* Fix notification timestamp to use original send time instead of receive time ([#1112](https://github.com/binwiederhier/ntfy/issues/1112), thanks to [@voruti](https://github.com/voruti) for reporting)
-* Fix notifications being missed after service restart by using persisted lastNotificationId ([#1591](https://github.com/binwiederhier/ntfy/issues/1591), thanks to @Epifeny for reporting)
+_Nothing._
